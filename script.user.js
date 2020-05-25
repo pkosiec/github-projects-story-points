@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Projects Story Points
 // @namespace    pkosiec
-// @version      0.1.0
+// @version      0.2.0
 // @description  Use Story Points in GitHub Project board without a hassle. No labels or issue title modifications needed.
 // @author       Pawel Kosiec
 // @website      https://github.com/pkosiec/gh-projects-story-points/
@@ -14,16 +14,38 @@
 (function () {
   "use strict";
 
-  // Script configuration
-  const refreshTime = 3000;
-  const highlightNotEstimatedCards = true;
+  /**
+   * Configuration
+   */
 
-  const storyPointsSummaryClass = "ghp-sp-story-points-summary";
+  const refreshInterval = 2000;
+  const highlightNotEstimatedCards = true;
+  const showTotalBoardStoryPoints = true;
+
+  // the column cards will be excluded from validation and counting Story Points:
+  // both from column and board Story Points count.
+  const excludedColumns = ["Inbox"];
+
+  // the column cards will be validated as usual and the column summary will be visible,
+  // but the Story Points from this column won't be counted towards the board total Story Points.
+  const excludedColumnsFromBoardStoryPointsCount = ["Backlog"];
+
+  /**
+   * Internal values
+   */
+
+  const storyPointsColumnSummaryClass = "ghp-sp-column-summary";
+  const storyPointsBoardSummaryClass = "ghp-sp-board-summary";
   const notEstimatedCardClass = "ghp-sp-not-estimated";
   const invalidEstimationCardClass = "ghp-sp-estimation-invalid";
+
   const estimationBlockSelector = `pre[lang="est"]`;
   const columnSelector = ".project-column";
+  const columnHeaderSelector = ".details-container";
+  const columnHeaderNameSelector = `${columnHeaderSelector} .js-project-column-name`;
   const cardSelector = "article.issue-card";
+  const projectBoardSelector = ".project-columns-container";
+  const boardHeaderSelector = ".project-header .project-header-controls";
   const customCSS = `
   ${cardSelector}.${notEstimatedCardClass} {
     background: #fff7bb!important;
@@ -32,29 +54,43 @@
   ${cardSelector}.${invalidEstimationCardClass} {
     background: #fbc8c8!important;
   }
-`;
 
-  if (document.querySelector(".project-columns-container") === null) {
+  .${storyPointsColumnSummaryClass} {
+    padding: 0 8px 8px;
+  }
+
+  .${storyPointsColumnSummaryClass} p, .${storyPointsBoardSummaryClass} p {
+    margin: 0;
+  }
+ `;
+
+  if (document.querySelector(projectBoardSelector) === null) {
     return;
   }
 
   console.log("Running GitHub Projects Story Points...");
   includeCustomCSS();
-  runPeriodically(refreshTime);
+  runPeriodically(refreshInterval);
 
-  function runPeriodically(refreshTime) {
+  function runPeriodically(refreshInterval) {
     setInterval(() => {
       run();
-    }, refreshTime);
+    }, refreshInterval);
   }
 
   function run() {
     removeExistingSummaries();
 
-    const columnNodes = getColumnNodes();
+    const columns = getColumns();
 
-    columnNodes.forEach((columnNode) => {
-      const cardNodes = getCardNodes(columnNode);
+    let totalBoardStoryPoints = 0;
+    columns.forEach((column) => {
+      if (excludedColumns.includes(column.name)) {
+        addExcludedLabelForColumnIfShould(column.node);
+        return;
+      }
+
+      const cardNodes = getCardNodes(column.node);
 
       const totalCardNodesCount = cardNodes.length;
       let estimatedCardsCount = 0;
@@ -69,22 +105,57 @@
         }
       });
 
-      addStoryPointsColumnSummary(columnNode, {
+      if (!excludedColumnsFromBoardStoryPointsCount.includes(column.name)) {
+        totalBoardStoryPoints += totalColumnStoryPoints;
+      }
+
+      addStoryPointsColumnSummary(column.node, {
         totalColumnStoryPoints,
         estimatedCardsCount,
         totalCardNodesCount,
       });
     });
+
+    if (showTotalBoardStoryPoints) {
+      const boardHeaderNode = getBoardHeaderNode();
+      addStoryPointsBoardSummary(boardHeaderNode, totalBoardStoryPoints);
+    }
   }
 
   function removeExistingSummaries() {
     document
-      .querySelectorAll(`.${storyPointsSummaryClass}`)
+      .querySelectorAll(`.${storyPointsColumnSummaryClass}`)
       .forEach((elem) => elem.remove());
+
+    const boardSummaryNode = document.querySelector(
+      `${boardHeaderSelector} .${storyPointsBoardSummaryClass}`
+    );
+    if (boardSummaryNode !== null) {
+      boardSummaryNode.remove();
+    }
   }
 
-  function getColumnNodes() {
-    return document.querySelectorAll(columnSelector);
+  function getBoardHeaderNode() {
+    return document.querySelector(boardHeaderSelector);
+  }
+
+  function getColumns() {
+    const columnNodes = document.querySelectorAll(columnSelector);
+    const columnNodesArray = [...columnNodes];
+
+    return columnNodesArray.map((columnNode) => {
+      const headerNode = columnNode.querySelector(columnHeaderNameSelector);
+      if (headerNode === null) {
+        return {
+          node: columnNode,
+        };
+      }
+
+      return {
+        node: columnNode,
+        name: headerNode.innerText,
+      };
+    });
   }
 
   function getCardNodes(columnNode) {
@@ -151,14 +222,58 @@
     columnNode,
     { totalColumnStoryPoints, estimatedCardsCount, totalCardNodesCount }
   ) {
-    const projectColumnHeader = columnNode.querySelector(".details-container");
+    const projectColumnHeader = columnNode.querySelector(columnHeaderSelector);
 
     const summaryDiv = document.createElement("div");
-    summaryDiv.className = storyPointsSummaryClass;
-    summaryDiv.style.padding = "8px";
-    summaryDiv.innerHTML = `<p style="margin:0">
+    summaryDiv.className = storyPointsColumnSummaryClass;
+    summaryDiv.innerHTML = `<p>
           <strong>Story Points:</strong> ${totalColumnStoryPoints} (Estimated: ${estimatedCardsCount}/${totalCardNodesCount})
         </p>`;
     projectColumnHeader.appendChild(summaryDiv);
+  }
+
+  function addExcludedLabelForColumnIfShould(columnNode) {
+    const projectColumnHeader = columnNode.querySelector(columnHeaderSelector);
+
+    if (
+      projectColumnHeader.querySelector(`.${storyPointsColumnSummaryClass}`) !==
+      null
+    ) {
+      return;
+    }
+
+    const excludedColumnDiv = document.createElement("div");
+    excludedColumnDiv.className = storyPointsColumnSummaryClass;
+    excludedColumnDiv.innerHTML = `<p>
+          Story Points count disabled
+        </p>`;
+    projectColumnHeader.appendChild(excludedColumnDiv);
+  }
+
+  function addStoryPointsBoardSummary(boardHeaderNode, totalBoardStoryPoints) {
+    const summaryDiv = document.createElement("div");
+    summaryDiv.className = storyPointsBoardSummaryClass;
+
+    let additionalContent = "";
+    if (
+      excludedColumns.length > 0 ||
+      excludedColumnsFromBoardStoryPointsCount.length > 0
+    ) {
+      const ignoredColumns = [
+        ...new Set([
+          ...excludedColumns,
+          ...excludedColumnsFromBoardStoryPointsCount,
+        ]),
+      ];
+      additionalContent = `<br/><small>Ignored columns: ${ignoredColumns.join(
+        ", "
+      )}</small>`;
+    }
+
+    summaryDiv.innerHTML = `<p>
+          <strong>Board Story Points:</strong> ${totalBoardStoryPoints}${additionalContent}
+        </p>`;
+
+    boardHeaderNode.prepend(summaryDiv);
   }
 })();
