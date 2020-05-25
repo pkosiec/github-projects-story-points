@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Projects Story Points
 // @namespace    pkosiec
-// @version      0.0.2
+// @version      0.1.0
 // @description  Use Story Points in GitHub Project board without a hassle. No labels or issue title modifications needed.
 // @author       Pawel Kosiec
 // @website      https://github.com/pkosiec/gh-projects-story-points/
@@ -13,8 +13,10 @@
 
 (function () {
   "use strict";
-  
+
+  // Script configuration
   const refreshTime = 3000;
+  const highlightNotEstimatedCards = true;
 
   const storyPointsSummaryClass = "ghp-sp-story-points-summary";
   const notEstimatedCardClass = "ghp-sp-not-estimated";
@@ -31,8 +33,7 @@
     background: #fb6d6d!important;
     border: 1px solid red!important;
   }
-`
-
+`;
 
   if (document.querySelector(".project-columns-container") === null) {
     return;
@@ -54,16 +55,26 @@
     const columnNodes = getColumnNodes();
 
     columnNodes.forEach((columnNode) => {
-      const totalCardNodes = getTotalCardNodes(columnNode);
-      const estimatedCardNodes = getEstimatedCardNodes(columnNode);
+      const cardNodes = getCardNodes(columnNode);
 
-      highlightNotEstimatedCards(totalCardNodes);
-      
-      const columnStoryPointsStats = calculateStoryPointsStats(
-        estimatedCardNodes,
-        totalCardNodes
-      );
-      addStoryPointsColumnSummary(columnNode, columnStoryPointsStats);
+      const totalCardNodesCount = cardNodes.length;
+      let estimatedCardsCount = 0;
+      let totalColumnStoryPoints = 0;
+      cardNodes.forEach((cardNode) => {
+        try {
+          const cardStoryPoints = getCardStoryPoints(cardNode);
+          totalColumnStoryPoints += cardStoryPoints;
+          estimatedCardsCount++;
+        } catch (err) {
+          highlightCard(cardNode, err);
+        }
+      });
+
+      addStoryPointsColumnSummary(columnNode, {
+        totalColumnStoryPoints,
+        estimatedCardsCount,
+        totalCardNodesCount,
+      });
     });
   }
 
@@ -77,64 +88,69 @@
     return document.querySelectorAll(columnSelector);
   }
 
-  function getEstimatedCardNodes(columnNode) {
-    return columnNode.querySelectorAll(estimationBlockSelector);
-  }
-
-  function getTotalCardNodes(columnNode) {
+  function getCardNodes(columnNode) {
     return columnNode.querySelectorAll(cardSelector);
   }
 
-  function calculateStoryPointsStats(estimatedCardNodes, totalCardNodes) {
-    let totalStoryPointsCount = 0;
-    estimatedCardNodes.forEach((est) => {
-      const estimationText = est.innerText.replace("SP:", "");
-      const estNumber = Number(estimationText);
-
-      if (isNaN(estNumber)) {
+  function highlightCard(node, err) {
+    switch (true) {
+      case err instanceof NoEstimationCardError:
+        if (highlightNotEstimatedCards) {
+          node.classList.add(notEstimatedCardClass);
+        }
         return;
-      }
-
-      totalStoryPointsCount += estNumber;
-    });
-
-    const estimatedCardsCount = estimatedCardNodes.length;
-    const totalCardsCount = totalCardNodes.length;
-
-    return {
-      totalStoryPointsCount,
-      estimatedCardsCount,
-      totalCardsCount,
-    };
+      case err instanceof InvalidEstimationCardError:
+        node.classList.add(invalidEstimationCardClass);
+        return;
+    }
   }
 
-  function highlightNotEstimatedCards(cardNodes) {
-    cardNodes.forEach((node) => {
-      const estimationCodeBlockNodes = node.querySelectorAll(estimationBlockSelector)
-      if (estimationCodeBlockNodes.length === 0) {
-        node.classList.add(notEstimatedCardClass)
-        return;
-      }
+  class NoEstimationCardError extends Error {}
+  class InvalidEstimationCardError extends Error {}
 
-      if (estimationCodeBlockNodes.length > 1) {
-        // invalid card
-        node.classList.add(invalidEstimationCardClass)
-        return;
-      }
-    });
+  function getCardStoryPoints(node) {
+    const estimationCodeBlockNodes = node.querySelectorAll(
+      estimationBlockSelector
+    );
+
+    if (estimationCodeBlockNodes.length === 0) {
+      throw new NoEstimationCardError();
+    }
+
+    if (estimationCodeBlockNodes.length > 1) {
+      throw new InvalidEstimationCardError();
+    }
+
+    const storyPoints = getStoryPoints(estimationCodeBlockNodes[0]);
+    if (storyPoints < 0) {
+      throw new InvalidEstimationCardError();
+    }
+
+    return storyPoints;
+  }
+
+  function getStoryPoints(estimationCodeBlockNode) {
+    const estimationText = estimationCodeBlockNode.innerText.replace("SP:", "");
+    const estNumber = Number(estimationText);
+
+    if (isNaN(estNumber) || estNumber < 0) {
+      return -1;
+    }
+
+    return estNumber;
   }
 
   function includeCustomCSS() {
-    const styleNode = document.createElement('style');
-    styleNode.type = 'text/css';
-    styleNode.appendChild(document.createTextNode(customCSS))
+    const styleNode = document.createElement("style");
+    styleNode.type = "text/css";
+    styleNode.appendChild(document.createTextNode(customCSS));
 
-    document.head.appendChild(styleNode)
+    document.head.appendChild(styleNode);
   }
 
   function addStoryPointsColumnSummary(
     columnNode,
-    { totalStoryPointsCount, estimatedCardsCount, totalCardsCount }
+    { totalColumnStoryPoints, estimatedCardsCount, totalCardNodesCount }
   ) {
     const projectColumnHeader = columnNode.querySelector(".details-container");
 
@@ -142,7 +158,7 @@
     summaryDiv.className = storyPointsSummaryClass;
     summaryDiv.style.padding = "8px";
     summaryDiv.innerHTML = `<p style="margin:0">
-          <strong>Story Points:</strong> ${totalStoryPointsCount} (Estimated: ${estimatedCardsCount}/${totalCardsCount})
+          <strong>Story Points:</strong> ${totalColumnStoryPoints} (Estimated: ${estimatedCardsCount}/${totalCardNodesCount})
         </p>`;
     projectColumnHeader.appendChild(summaryDiv);
   }

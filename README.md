@@ -14,7 +14,7 @@ There are plenty of similar tools. However, all existing plugins or scripts I fo
 
 1. Install [Tampermonkey](http://www.tampermonkey.net/) plugin for your favorite web browser.
 2. Navigate to the [GitHub Project Story Points User Script](https://raw.githubusercontent.com/pkosiec/github-projects-story-points/master/script.user.js) location. The script format is detected automatically and Tampermonkey will ask to install it.
-3. Tampermonkey will watch the script version from installed location and if necessary, it will update the script automatically.
+3. Tampermonkey will watch the script location and it will update the script automatically once new version is released.
 
 ## Usage
 
