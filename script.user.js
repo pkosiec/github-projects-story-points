@@ -30,8 +30,7 @@
   }
 
   ${cardSelector}.${invalidEstimationCardClass} {
-    background: #fb6d6d!important;
-    border: 1px solid red!important;
+    background: #fbc8c8!important;
   }
 `;
 

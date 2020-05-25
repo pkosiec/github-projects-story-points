@@ -10,6 +10,16 @@ Use Story Points in GitHub Project board without a hassle. No labels or issue ti
 
 There are plenty of similar tools. However, all existing plugins or scripts I found base on Github labels or tags in task titles, which doesn't look professional. I prepared the script to keep the estimations internal, visible only on GitHub Project boards. The boards can set as private, which means this script allows to show Story Points only for authors or organization members.
 
+## Features
+
+The script has the following features:
+- Show total Story Points number per column
+- Show number of estimated cards and total cards number per column
+- Highlight not estimated cards
+- Highlight cards with invalid estimation
+
+Current implementation of the script recalculates Story Points every 3 seconds.
+
 ## Installation
 
 1. Install [Tampermonkey](http://www.tampermonkey.net/) plugin for your favorite web browser.
@@ -35,8 +45,6 @@ There are plenty of similar tools. However, all existing plugins or scripts I fo
      ```
      ~~~
 1. Observe Story Point Column Summary update.
-
-    > **NOTE:** Currently, the script refreshes the Story Point summary every 3 seconds.
 
 ## Examples
 
