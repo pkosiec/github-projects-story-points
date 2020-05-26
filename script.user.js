@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Projects Story Points
 // @namespace    pkosiec
-// @version      0.2.0
+// @version      0.2.1
 // @description  Use Story Points in GitHub Project board without a hassle. No labels or issue title modifications needed.
 // @author       Pawel Kosiec
 // @website      https://github.com/pkosiec/gh-projects-story-points/
