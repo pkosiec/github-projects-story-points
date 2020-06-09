@@ -20,9 +20,9 @@ The script has the following features:
 - Highlight cards with invalid estimation
 - Show total Story Points on the project board
 - Ignore specific columns
-- Customize color for card with a specific prefix
+- Customize color for card, that contains specific text
 
-Current implementation of the script recalculates Story Points every 2 seconds.
+Current implementation of the script recalculates Story Points every 1 second.
 
 ### Installation
 
@@ -54,17 +54,59 @@ Current implementation of the script recalculates Story Points every 2 seconds.
 Currently the plugin doesn't expose official configuration options. As a workaround, you can modify the following lines of the script:
 
 ```javascript
-const refreshInterval = 2000;
-const highlightNotEstimatedCards = true;
-const showTotalBoardStoryPoints = true;
+const config = {
+  // Interval when Story Points, custom styles etc. are recalculated
+  refreshInterval: 1000,
 
-// the column cards will be excluded from validation and counting Story Points:
-// both from column and board Story Points count.
-const excludedColumns = ["Inbox"];
+  // Configuration for project board header
+  boardHeader: {
+    // show Story Points summary on top of the project board
+    showTotalBoardStoryPoints: true,
+  },
 
-// the column cards will be validated as usual and the column summary will be visible,
-// but the Story Points from this column won't be counted towards the board total Story Points.
-const excludedColumnsFromBoardStoryPointsCount = ["Backlog"];
+  // Configuration for project board cards
+  cards: {
+    // CSS style for not estimated cards. Leave empty if you don't want to override style.
+    unestimatedCSS: `
+        background: #fff7bb!important;
+      `,
+
+    // CSS Style for cards that have invalid estimation. Leave empty if you don't want to override style.
+    invalidCSS: `
+        background: #fbc8c8!important;
+      `,
+
+    // Customize cards based on its content. The following mapping is sample data you may customize for your needs.
+    customMappings: [
+      {
+        // Action Items
+        containsText: "[AI]",
+        css: `background: #d2bbff!important;`,
+      },
+      {
+        // Epics
+        containsText: "[EPIC]",
+        css: `background: #bbe3ff!important;`,
+      },
+      {
+        // Technical Writer tasks which are unestimated, but they shouldn't be highlighted
+        containsText: "[TW]",
+        css: `background: #fff!important;`,
+      },
+    ],
+  },
+
+  // Configuration for project board columns
+  columns: {
+    // the column cards will be validated as usual and the column summary will be visible,
+    // but the Story Points from this column won't be counted towards the board total Story Points.
+    excludedFromBoardStoryPointsCount: ["Backlog"],
+
+    // the column cards will be excluded from validation and counting Story Points:
+    // both from column and board Story Points count.
+    ignored: ["Inbox"],
+  },
+};
 ```
 
 However, keep in mind that every script update will overwrite your configuration values.

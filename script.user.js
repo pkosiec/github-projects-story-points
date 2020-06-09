@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Projects Story Points
 // @namespace    pkosiec
-// @version      0.3.0
+// @version      0.2.1
 // @description  Use Story Points in GitHub Project board without a hassle. No labels or issue title modifications needed.
 // @author       Pawel Kosiec
 // @website      https://github.com/pkosiec/gh-projects-story-points/
@@ -18,27 +18,68 @@
    * Configuration
    */
   const config = {
-    refreshInterval: 2000,
-    highlightNotEstimatedCards: true,
-    showTotalBoardStoryPoints: true,
+    // Interval when Story Points, custom styles etc. are recalculated
+    refreshInterval: 1000,
 
-    // the column cards will be excluded from validation and counting Story Points:
-    // both from column and board Story Points count.
-    excludedColumns: ["Inbox"],
+    // Configuration for project board header
+    boardHeader: {
+      // show Story Points summary on top of the project board
+      showTotalBoardStoryPoints: true,
+    },
 
-    // the column cards will be validated as usual and the column summary will be visible,
-    // but the Story Points from this column won't be counted towards the board total Story Points.
-    excludedColumnsFromBoardStoryPointsCount: ["Backlog"],
+    // Configuration for project board cards
+    cards: {
+      // CSS style for not estimated cards. Leave empty if you don't want to override style.
+      unestimatedCSS: `
+        background: #fff7bb!important;
+      `,
+
+      // CSS Style for cards that have invalid estimation. Leave empty if you don't want to override style.
+      invalidCSS: `
+        background: #fbc8c8!important;
+      `,
+
+      // Customize cards based on its content. The following mapping is sample data you may customize for your needs.
+      customMappings: [
+        {
+          // Action Items
+          containsText: "[AI]",
+          css: `background: #d2bbff!important;`,
+        },
+        {
+          // Epics
+          containsText: "[EPIC]",
+          css: `background: #bbe3ff!important;`,
+        },
+        {
+          // Technical Writer tasks which are unestimated, but they shouldn't be highlighted
+          containsText: "[TW]",
+          css: `background: #fff!important;`,
+        },
+      ],
+    },
+
+    // Configuration for project board columns
+    columns: {
+      // the column cards will be validated as usual and the column summary will be visible,
+      // but the Story Points from this column won't be counted towards the board total Story Points.
+      excludedFromBoardStoryPointsCount: ["Backlog"],
+
+      // the column cards will be excluded from validation and counting Story Points:
+      // both from column and board Story Points count.
+      ignored: ["Inbox"],
+    },
   };
 
   /**
    * Internal values, DO NOT MODIFY
    */
 
-  const storyPointsColumnSummaryClass = "ghp-sp-column-summary";
-  const storyPointsBoardSummaryClass = "ghp-sp-board-summary";
-  const notEstimatedCardClass = "ghp-sp-not-estimated";
-  const invalidEstimationCardClass = "ghp-sp-estimation-invalid";
+  const cssClassPrefix = "ghp-sp-";
+  const storyPointsColumnSummaryClass = `${cssClassPrefix}column-summary`;
+  const storyPointsBoardSummaryClass = `${cssClassPrefix}board-summary`;
+  const unestimatedCardClass = `${cssClassPrefix}not-estimated`;
+  const invalidEstimationCardClass = `${cssClassPrefix}estimation-invalid`;
 
   const estimationBlockSelector = `pre[lang="est"]`;
   const columnSelector = ".project-column";
@@ -48,13 +89,24 @@
   const boardHeaderSelector = ".project-header .project-header-controls";
   const projectBoardSelector = ".project-columns-container";
   const customCSS = `
-  ${cardSelector}.${notEstimatedCardClass} {
-    background: #fff7bb!important;
+  ${cardSelector}.${unestimatedCardClass} {
+    ${config.cards.unestimatedCSS}
   }
   
   ${cardSelector}.${invalidEstimationCardClass} {
-    background: #fbc8c8!important;
+    ${config.cards.invalidCSS}
   }
+
+  ${config.cards.customMappings
+    .map(
+      ({ css }, i) =>
+        `
+    ${cardSelector}.${cssClassPrefix}custom-${i} {
+      ${css}
+    }
+    `
+    )
+    .join("")}
   
   .${storyPointsColumnSummaryClass} {
     padding: 0 8px 8px;
@@ -65,6 +117,7 @@
   }
   `;
 
+  console.log(customCSS);
   class NoEstimationCardError extends Error {}
   class InvalidEstimationCardError extends Error {}
 
@@ -96,7 +149,7 @@
 
       let totalBoardStoryPoints = 0;
       columns.forEach((column) => {
-        if (config.excludedColumns.includes(column.name)) {
+        if (config.columns.ignored.includes(column.name)) {
           this.addExcludedLabelForColumnIfShould(column.node);
           return;
         }
@@ -114,10 +167,26 @@
           } catch (err) {
             this.highlightCard(cardNode, err);
           }
+
+          // move to another function
+          const textContent = cardNode.textContent;
+          const additionalCssClasses = this.config.cards.customMappings.map(
+            (item, i) => {
+              if (!textContent.includes(item.containsText)) {
+                return;
+              }
+
+              return `${cssClassPrefix}custom-${i}`;
+            },
+            null
+          );
+          additionalCssClasses.forEach(
+            (cssClass) => cssClass && cardNode.classList.add(cssClass)
+          );
         });
 
         if (
-          !this.config.excludedColumnsFromBoardStoryPointsCount.includes(
+          !this.config.columns.excludedFromBoardStoryPointsCount.includes(
             column.name
           )
         ) {
@@ -131,7 +200,7 @@
         });
       });
 
-      if (this.config.showTotalBoardStoryPoints) {
+      if (this.config.boardHeader.showTotalBoardStoryPoints) {
         const boardHeaderNode = this.getBoardHeaderNode();
         this.addStoryPointsBoardSummary(boardHeaderNode, totalBoardStoryPoints);
       }
@@ -180,9 +249,7 @@
     highlightCard(node, err) {
       switch (true) {
         case err instanceof NoEstimationCardError:
-          if (this.config.highlightNotEstimatedCards) {
-            node.classList.add(notEstimatedCardClass);
-          }
+          node.classList.add(unestimatedCardClass);
           return;
         case err instanceof InvalidEstimationCardError:
           node.classList.add(invalidEstimationCardClass);
@@ -276,13 +343,13 @@
 
       let additionalContent = "";
       if (
-        this.config.excludedColumns.length > 0 ||
-        this.config.excludedColumnsFromBoardStoryPointsCount.length > 0
+        this.config.columns.ignored.length > 0 ||
+        this.config.columns.excludedFromBoardStoryPointsCount.length > 0
       ) {
         const ignoredColumns = [
           ...new Set([
-            ...this.config.excludedColumns,
-            ...this.config.excludedColumnsFromBoardStoryPointsCount,
+            ...this.config.columns.ignored,
+            ...this.config.columns.excludedFromBoardStoryPointsCount,
           ]),
         ];
         additionalContent = `<br/><small>Ignored columns: ${ignoredColumns.join(
