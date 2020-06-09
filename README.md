@@ -6,11 +6,11 @@ Use Story Points in GitHub Project board without a hassle. No labels or issue ti
 
 ![Preview](./assets/github-projects-story-points.png)
 
-### Motivation
+## Motivation
 
 There are plenty of similar tools. However, all existing plugins or scripts I found base on Github labels or tags in task titles, which doesn't look professional. I prepared the script to keep the estimations internal, visible only on GitHub Project boards. The boards can set as private, which means this script allows to show Story Points only for authors or organization members.
 
-### Features
+## Features
 
 The script has the following features:
 
@@ -24,13 +24,15 @@ The script has the following features:
 
 Current implementation of the script recalculates Story Points every 1 second.
 
-### Installation
+## Installation
 
 1. Install [Violentmonkey](https://violentmonkey.github.io/) (open source) or [Tampermonkey](http://www.tampermonkey.net/) (closed source) plugin for your favorite web browser.
 2. Navigate to the [GitHub Project Story Points User Script](https://raw.githubusercontent.com/pkosiec/github-projects-story-points/master/script.user.js) location. The script format is detected automatically and Tampermonkey will ask to install it.
 3. The userscript manager will watch the script location and it will update the script automatically once new version is released.
 
-### Usage
+## Usage
+
+### Story Points
 
 1. Navigate to your GitHub Project board.
 1. Add a note to a column with a task description.
@@ -48,6 +50,10 @@ Current implementation of the script recalculates Story Points every 1 second.
    ```
    ````
 1. Observe Story Point Column Summary update.
+
+### Card Color Customization
+
+> TODO: Update readme
 
 ### Configuration
 
