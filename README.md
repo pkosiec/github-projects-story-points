@@ -20,6 +20,7 @@ The script has the following features:
 - Highlight cards with invalid estimation
 - Show total Story Points on the project board
 - Ignore specific columns
+- Customize color for card with a specific prefix
 
 Current implementation of the script recalculates Story Points every 2 seconds.
 
