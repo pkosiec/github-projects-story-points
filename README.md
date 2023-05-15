@@ -1,6 +1,6 @@
 # GitHub Projects Story Points
 
-> **:warning: WARNING:** This script is in a very early stage. Use it at your own risk.
+> **:warning: DEPRECATED:** This project is no longer needed as GitHub issues supports custom fields now. Use [number fields](https://docs.github.com/en/issues/planning-and-tracking-with-projects/understanding-fields/about-text-and-number-fields#adding-a-number-field) to add estimations to your issues and display [sum of the field](https://docs.github.com/en/issues/planning-and-tracking-with-projects/customizing-views-in-your-project/customizing-the-board-layout#showing-the-sum-of-a-number-field) on your board.
 
 Use Story Points in GitHub Project board without a hassle. No labels or issue title modifications needed.
 
